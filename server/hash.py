@@ -25,22 +25,23 @@ def jenkins_one_at_a_time(palavra: str) -> int:
     return hash_value & 0xffffffff
 
 
-# Caso queira testar, lembrar de colocar na mesma pasta do arquivo.
-local_arq = "words.txt"
+if __name__ == "__main__": # roda somente caso o arquivo seja chamado diretamente (nao acontece caso seja importado)
+    # Caso queira testar, lembrar de colocar na mesma pasta do arquivo.
+    local_arq = "words.txt"
 
-with open(local_arq, "r", encoding="utf-8") as arquivo:
-    lista = pd.Series([linha.strip() for linha in arquivo])
+    with open(local_arq, "r", encoding="utf-8") as arquivo:
+        lista = pd.Series([linha.strip() for linha in arquivo])
 
-# Tava dando erro na leitura, isso garante que qualquer valor nulo será ignorado e todos os valores de linha serão convertidos para string.
-lista = lista.dropna().astype(str)
-lista_hash = lista.apply(jenkins_one_at_a_time)
+    # Tava dando erro na leitura, isso garante que qualquer valor nulo será ignorado e todos os valores de linha serão convertidos para string.
+    lista = lista.dropna().astype(str)
+    lista_hash = lista.apply(jenkins_one_at_a_time)
 
-# Controle, apenas para verificar os valores obtidos, se obteve algum valor extremamente baixo ou alto.
-m = lista_hash.nsmallest(100)
-# m = lista_hash.nlargest(100)
-for i in m:
-    print(i)
+    # Controle, apenas para verificar os valores obtidos, se obteve algum valor extremamente baixo ou alto.
+    m = lista_hash.nsmallest(100)
+    # m = lista_hash.nlargest(100)
+    for i in m:
+        print(i)
 
-# Verificando quantas possíveis colisões teríamos até aqui.
-duplicatas = lista_hash.value_counts()
-print(duplicatas[duplicatas > 1])
+    # Verificando quantas possíveis colisões teríamos até aqui.
+    duplicatas = lista_hash.value_counts()
+    print(duplicatas[duplicatas > 1])
