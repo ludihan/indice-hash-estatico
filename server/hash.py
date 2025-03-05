@@ -1,3 +1,4 @@
+
 import pandas as pd
 """
 Implementação Jenkins One-at-a-time Hash (https://en.wikipedia.org/wiki/Jenkins_hash_function)
@@ -25,7 +26,8 @@ def jenkins_one_at_a_time(palavra: str) -> int:
     return hash_value & 0xffffffff
 
 
-if __name__ == "__main__": # roda somente caso o arquivo seja chamado diretamente (nao acontece caso seja importado)
+# Roda somente caso seja chamado explicitamente pelo interpretador
+if __name__ == "__main__":
     # Caso queira testar, lembrar de colocar na mesma pasta do arquivo.
     local_arq = "words.txt"
 
