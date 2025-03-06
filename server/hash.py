@@ -1,5 +1,5 @@
-
 import pandas as pd
+
 """
 Implementação Jenkins One-at-a-time Hash (https://en.wikipedia.org/wiki/Jenkins_hash_function)
 Esta função é focada em bit mixing, com passos extras para gerar efeito avalanche, ou seja, qualquer diferença pequena se propagará mais e mais alterando o valor final.
@@ -13,17 +13,17 @@ def jenkins_one_at_a_time(palavra: str) -> int:
     for caractere in palavra:
         # ord() retorna o valor ASCII de cada caractere, ou a gente tem que fazer isso manualmente também?
         hash_value += ord(caractere)
-        hash_value += (hash_value << 10)
-        hash_value ^= (hash_value >> 6)
+        hash_value += hash_value << 10
+        hash_value ^= hash_value >> 6
 
-    hash_value += (hash_value << 3)
-    hash_value ^= (hash_value >> 11)
-    hash_value += (hash_value << 15)
+    hash_value += hash_value << 3
+    hash_value ^= hash_value >> 11
+    hash_value += hash_value << 15
 
     hash_value = (hash_value * 35969) % (2**32)
 
     # Essa função é orientada a 32 bits, isso vai limitar o valor do hash para 32 bits no Python, caso contrário, valores absurdamente grandes ocorrerão.
-    return hash_value & 0xffffffff
+    return hash_value & 0xFFFFFFFF
 
 
 # Roda somente caso seja chamado explicitamente pelo interpretador
