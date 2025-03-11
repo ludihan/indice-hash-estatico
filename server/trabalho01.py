@@ -142,22 +142,23 @@ def construir_indice_hash(paginas, indice_hash):
             cont += 1
 
 
-# Exemplo de uso
-nome_arquivo = 'words.txt'  # Nome do arquivo com os dados
-tamanho_pagina = 5  # Tamanho da página
-num_buckets = 11  # Número de buckets para o índice hash
-tamanho_bucket = 3  # Tamanho máximo de um bucket
+if __name__ == "__main__":
+    # Exemplo de uso
+    nome_arquivo = 'words.txt'  # Nome do arquivo com os dados
+    tamanho_pagina = 5  # Tamanho da página
+    num_buckets = 11  # Número de buckets para o índice hash
+    tamanho_bucket = 3  # Tamanho máximo de um bucket
 
-cont = 0
+    cont = 0
 
-# Criação do índice hash
-indice_hash = IndiceHash(num_buckets, tamanho_bucket)
+    # Criação do índice hash
+    indice_hash = IndiceHash(num_buckets, tamanho_bucket)
 
-# Carregar dados do arquivo e dividir em páginas
-paginas = carregar_dados_arquivo(nome_arquivo, tamanho_pagina)
+    # Carregar dados do arquivo e dividir em páginas
+    paginas = carregar_dados_arquivo(nome_arquivo, tamanho_pagina)
 
-# Construir o índice hash
-construir_indice_hash(paginas, indice_hash)
+    # Construir o índice hash
+    construir_indice_hash(paginas, indice_hash)
 
-# Exibir a tabela do índice
-indice_hash.exibir_tabela()
+    # Exibir a tabela do índice
+    indice_hash.exibir_tabela()
