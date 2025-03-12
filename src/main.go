@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"fmt"
 	"math"
+	"os"
 	"strings"
 )
 
@@ -51,11 +52,9 @@ func (db Database) pageCount() int {
 	return int(math.Ceil(float64(len(db.data)) / float64(db.pageSize)))
 }
 
-
-var bucketSize = 0
 type Bucket struct {
-	values     map[string]uint
-	overflow   *Bucket
+	values   map[string]uint
+	overflow *Bucket
 }
 
 func main() {
@@ -75,29 +74,61 @@ func main() {
 	}
 
 	// (FR)
-	bucketSize = 2
+	bucketSize := 2
 
 	// (NB)
-	bucketCount := (len(db.data) / bucketSize) + 1
-	fmt.Println(len(db.data), bucketSize, bucketCount)
+	bucketCount := (len(db.data) / bucketSize)
+
+	// (NR)
+	wordCount := len(db.data)
+	fmt.Println(bucketCount, wordCount)
 
 	hashIndex := make([]Bucket, bucketCount)
+	for i := range hashIndex {
+		hashIndex[i].values = make(map[string]uint)
+	}
+
 	for i, v := range db.data {
 		hashed := hash(v)
 		bucket := &hashIndex[hashed%uint64(len(hashIndex))]
-		if len(bucket.values) >= int(bucketSize) {
-			overflow := bucket.overflow
 
-			for overflow != nil {
-				overflow = bucket.overflow
-			}
-
-            overflow = &Bucket{make(map[string]uint), nil}
-			bucket.values[v] = uint(i) / db.pageSize
-		} else {
-			bucket.values[v] = uint(i) / db.pageSize
+		for bucket.overflow != nil {
+			bucket = bucket.overflow
 		}
+
+		if len(bucket.values) >= int(bucketSize) {
+			newBucket := &Bucket{values: make(map[string]uint)}
+			bucket.overflow = newBucket
+			bucket = newBucket
+		}
+
+		bucket.values[v] = uint(i) / db.pageSize
 	}
 
-	fmt.Println(hashIndex)
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		text, _ := reader.ReadString('\n')
+
+        text = strings.TrimSpace(text)
+		found := false
+		page := uint(0)
+		bucket := &hashIndex[hash(text)%uint64(len(hashIndex))]
+        for bucket != nil {
+            fmt.Println(bucket)
+			for k, v := range bucket.values {
+                if k == text {
+                    page = v
+                    found = true
+                }
+			}
+			bucket = bucket.overflow
+		}
+        if found {
+            fmt.Println("Found in page", page)
+            foundPage, _ := db.getPage(page)
+            fmt.Println(foundPage, "\n")
+        } else {
+            fmt.Println("not found\n")
+        }
+	}
 }
