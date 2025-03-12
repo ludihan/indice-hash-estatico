@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"gioui.org/app"
 	"gioui.org/layout"
@@ -59,7 +60,7 @@ type Database struct {
 	pageSize uint
 }
 
-func (db Database) getPage(index uint) ([]string, bool) {
+func (db *Database) getPage(index uint) ([]string, bool) {
 	clamp := func(low, high uint) uint {
 		if low < high {
 			return low
@@ -75,13 +76,46 @@ func (db Database) getPage(index uint) ([]string, bool) {
 	return []string{}, false
 }
 
-func (db Database) pageCount() int {
+func (db *Database) pageCount() int {
 	return int(math.Ceil(float64(len(db.data)) / float64(db.pageSize)))
+}
+
+// pagina, se foi achado, acesso de disco e tempo levado
+func (db *Database) search(word string) (uint, bool, uint, time.Duration) {
+	start := time.Now()
+	pages := uint(0)
+	for i, v := range db.data {
+		if word == v {
+			pages = uint(i) / db.pageSize
+			return pages, true, pages, time.Now().Sub(start)
+		}
+	}
+	return pages, false, pages, time.Now().Sub(start)
 }
 
 type Bucket struct {
 	values   map[string]uint
 	overflow *Bucket
+}
+
+type HashIndex []Bucket
+
+// pagina, se foi achado, acesso de disco e tempo levado
+func (hi HashIndex) search(word string) (uint, bool, uint, time.Duration) {
+	start := time.Now()
+	totalAccess := uint(0)
+	hashed := hash(word)
+	bucket := &hi[hashed%uint64(len(hi))]
+	totalAccess++
+	for bucket != nil {
+		for k, v := range bucket.values {
+			if k == word {
+				return v, true, totalAccess, time.Now().Sub(start)
+			}
+		}
+		bucket = bucket.overflow
+	}
+	return 0, false, totalAccess, time.Now().Sub(start)
 }
 
 type App struct {
@@ -91,7 +125,7 @@ type App struct {
 	wordCount   uint
 	collisions  uint
 	overflows   uint
-	hashIndex   []Bucket
+	hashIndex   HashIndex
 }
 
 func rehash(pageSize uint) App {
@@ -176,7 +210,7 @@ func main() {
 		go func() {
 			window := new(app.Window)
 			window.Option(app.Title("Hash Index"))
-			if err := gui(window); err != nil {
+			if err := initialWindow(window); err != nil {
 				log.Fatal(err)
 			}
 			os.Exit(0)
@@ -217,31 +251,32 @@ func cli() {
 		}
 		if text[0] == ':' {
 			num, err := strconv.Atoi(text[1:])
-			if err == nil {
+			if err != nil {
+				fmt.Println(err)
+				continue
+			} else {
 				if num >= 0 {
 					fmt.Println(db.getPage(uint(num)))
 				} else {
 					fmt.Println("only positive")
 				}
-				continue
 			}
+			continue
 		}
 
-		found := false
-		page := uint(0)
-		bucket := &hashIndex[hash(text)%uint64(len(hashIndex))]
-		for bucket != nil {
-			fmt.Println(bucket)
-			for k, v := range bucket.values {
-				if k == text {
-					page = v
-					found = true
-				}
-			}
-			bucket = bucket.overflow
+		page, found, access, time := uint(0), false, uint(0), time.Duration(0)
+
+		if text[0] == '.' {
+			text := text[1:]
+			page, found, access, time = db.search(text)
+			fmt.Println("Table scan:")
+		} else {
+			page, found, access, time = hashIndex.search(text)
+			fmt.Println("Hash index:")
 		}
+
 		if found {
-			fmt.Println("Found in page", page)
+			fmt.Println("Found in page", page, "Access:", access, "Time:", time)
 			foundPage, _ := db.getPage(page)
 			fmt.Println(foundPage)
 			fmt.Println("")
@@ -253,108 +288,138 @@ func cli() {
 
 }
 
-func gui(window *app.Window) error {
-	pageSizeNotProvided := true
-
-	// GUI stuff
+func initialWindow(window *app.Window) error {
 	var ops op.Ops
-
-	var startButton widget.Clickable
 
 	theme := material.NewTheme()
 
-	var pageSizeInput widget.Editor = widget.Editor{
+	var pageSizeInput = widget.Editor{
 		SingleLine: true,
 		Submit:     true,
 	}
-	var pageSizeSend widget.Clickable
+
+	var pageSize uint64
+	var inputError string
+	var input string
+	var mainWindow = false
+	var backButton widget.Clickable
+	var tableScanButton widget.Clickable
+	var tupleButton widget.Clickable
+	var word string
+	var wordInput = widget.Editor{
+		SingleLine: true,
+		Submit:     true,
+	}
+	var infoOutput = widget.Editor{
+		ReadOnly: true,
+	}
+
+	margins := layout.UniformInset(unit.Dp(10))
 	for {
 		switch e := window.Event().(type) {
 		case app.FrameEvent:
 			gtx := app.NewContext(&ops, e)
-			if pageSizeNotProvided {
+			if !mainWindow {
 				layout.Flex{
-					Axis:    layout.Vertical,
-					Spacing: layout.SpaceEnd,
+					Axis: layout.Vertical,
 				}.Layout(gtx,
 					layout.Rigid(
 						func(gtx layout.Context) layout.Dimensions {
-							margins := layout.UniformInset(unit.Dp(10))
-
 							return margins.Layout(gtx,
 								func(gtx layout.Context) layout.Dimensions {
-									title := material.H3(theme, "Page size:")
+									title := material.H3(theme, "Tamanho da página:")
 									return title.Layout(gtx)
 								},
 							)
-
 						},
 					),
 					layout.Rigid(
 						func(gtx layout.Context) layout.Dimensions {
-							margins := layout.UniformInset(unit.Dp(10))
-
 							return margins.Layout(gtx,
 								func(gtx layout.Context) layout.Dimensions {
-									input := material.Editor(theme, &pageSizeInput, "send")
+									btnE, ok := pageSizeInput.Update(gtx)
+									if ok {
+										if btnE, ok := btnE.(widget.SubmitEvent); ok {
+											input = btnE.Text
+										}
+									}
+									input := material.Editor(theme, &pageSizeInput, "digite aqui")
 									return input.Layout(gtx)
 								},
 							)
-
 						},
 					),
 					layout.Rigid(
 						func(gtx layout.Context) layout.Dimensions {
-							margins := layout.UniformInset(unit.Dp(10))
-
 							return margins.Layout(gtx,
 								func(gtx layout.Context) layout.Dimensions {
-									btn := material.Button(theme, &pageSizeSend, "send")
+									btn := material.H4(theme, inputError)
 									return btn.Layout(gtx)
 								},
 							)
-
 						},
 					),
 				)
+
+				if input != "" {
+					var err error
+					pageSize, err = strconv.ParseUint(strings.TrimSpace(input), 10, 0)
+					if err != nil {
+						inputError = "seu input não é unsigned int,\n"
+						inputError += err.Error()
+					} else {
+						fmt.Println(pageSize)
+						mainWindow = true
+						inputError = ""
+						input = ""
+					}
+				}
+
+				e.Frame(gtx.Ops)
 			} else {
 				layout.Flex{
-					Axis:    layout.Vertical,
-					Spacing: layout.SpaceEnd,
+					Axis: layout.Vertical,
 				}.Layout(gtx,
 					layout.Rigid(
 						func(gtx layout.Context) layout.Dimensions {
-							margins := layout.UniformInset(unit.Dp(10))
-
 							return margins.Layout(gtx,
 								func(gtx layout.Context) layout.Dimensions {
-									title := material.H1(theme, "huhhhhh")
-									return title.Layout(gtx)
+									backBtn := material.Button(theme, &backButton, "voltar")
+									if backButton.Clicked(gtx) {
+										input = ""
+										mainWindow = false
+									}
+									return backBtn.Layout(gtx)
 								},
 							)
-
 						},
 					),
 					layout.Rigid(
 						func(gtx layout.Context) layout.Dimensions {
-							margins := layout.UniformInset(unit.Dp(10))
-
+							pageSize = pageSize
 							return margins.Layout(gtx,
 								func(gtx layout.Context) layout.Dimensions {
-									btn := material.Button(theme, &startButton, "Start")
-									return btn.Layout(gtx)
+									layout.Flex{
+										Axis: layout.Vertical,
+									}.Layout(gtx,
+										layout.Rigid(
+											func(gtx layout.Context) layout.Dimensions {
+
+											},
+										),
+									)
+									title := material.H3(theme, "Tamanho da página:")
+									return title.Layout(gtx)
 								},
 							)
-
 						},
 					),
 				)
-			}
 
-			e.Frame(gtx.Ops)
+				e.Frame(gtx.Ops)
+			}
 		case app.DestroyEvent:
 			return e.Err
 		}
 	}
-
 }
