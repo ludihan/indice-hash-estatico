@@ -298,6 +298,9 @@ func initialWindow(window *app.Window) error {
 		Submit:     true,
 	}
 
+	var db_app App
+	var alreadyRehashed = false
+
 	var pageSize uint64
 	var inputError string
 	var input string
@@ -307,6 +310,7 @@ func initialWindow(window *app.Window) error {
 		SingleLine: true,
 		Submit:     true,
 	}
+	var wordText string
 	var pageOutput = widget.Editor{
 		ReadOnly: true,
 	}
@@ -314,6 +318,7 @@ func initialWindow(window *app.Window) error {
 	var tableScanButton widget.Clickable
 	var hashIndexScanButton widget.Clickable
 
+	var pageOutputText string
 	margins := layout.UniformInset(unit.Dp(10))
 	for {
 		switch e := window.Event().(type) {
@@ -369,7 +374,6 @@ func initialWindow(window *app.Window) error {
 						inputError = "seu input não é unsigned int,\n"
 						inputError += err.Error()
 					} else {
-						fmt.Println(pageSize)
 						mainWindow = true
 						inputError = ""
 						input = ""
@@ -378,6 +382,10 @@ func initialWindow(window *app.Window) error {
 
 				e.Frame(gtx.Ops)
 			} else {
+				if !alreadyRehashed {
+					db_app = rehash(uint(pageSize))
+					alreadyRehashed = true
+				}
 				layout.Flex{
 					Axis: layout.Vertical,
 				}.Layout(gtx,
@@ -399,7 +407,7 @@ func initialWindow(window *app.Window) error {
 					),
 
 					// tudo abaixo do botao
-					layout.Flexed(1,
+					layout.Rigid(
 						func(gtx layout.Context) layout.Dimensions {
 							return margins.Layout(gtx,
 								func(gtx layout.Context) layout.Dimensions {
@@ -411,7 +419,7 @@ func initialWindow(window *app.Window) error {
 									}.Layout(gtx,
 
 										// coluna de informacao
-										layout.Rigid(
+										layout.Flexed(1,
 											func(gtx layout.Context) layout.Dimensions {
 												return layout.Flex{
 													Axis: layout.Vertical,
@@ -419,7 +427,19 @@ func initialWindow(window *app.Window) error {
 													layout.Rigid(
 														// mostra a pagina que ele achou
 														func(gtx layout.Context) layout.Dimensions {
-															pageOutputEditor := material.Editor(theme, &pageOutput, "asdf")
+															pageOutputEditor := material.Editor(theme, &pageOutput,
+																fmt.Sprintf(
+																	"tamanho do bucket: %v\n" +
+																	"quantidade de buckets: %v\n" +
+																	"tamanho da pagina: %v\n" +
+																	"quantidade de registros: %v\n" +
+																	"colisões: %v %v %%\n" +
+																	"overflows: %v %v %%\n",
+																	db_app.bucketSize, db_app.bucketCount, db_app.db.pageSize, len(db_app.db.data),
+																	db_app.collisions, float64(db_app.collisions)/float64(len(db_app.db.data))*100,
+																	db_app.overflows, float64(db_app.overflows)/float64(len(db_app.db.data))*100,
+																),
+															)
 															return pageOutputEditor.Layout(gtx)
 														},
 													),
@@ -428,16 +448,24 @@ func initialWindow(window *app.Window) error {
 										),
 
 										//coluna de input e pagina
-										layout.Rigid(
+										layout.Flexed(1,
 											func(gtx layout.Context) layout.Dimensions {
 												return layout.Flex{
 													Axis: layout.Vertical,
 												}.Layout(gtx,
+													// pagina
+													layout.Flexed(1,
+														func(gtx layout.Context) layout.Dimensions {
+															pageOutputEditor := material.Editor(theme, &pageOutput, pageOutputText)
+															return pageOutputEditor.Layout(gtx)
+														},
+													),
 
 													// input
 													layout.Rigid(
 														func(gtx layout.Context) layout.Dimensions {
-															wordInputEditor := material.Editor(theme, &wordInput, "aaaaaaaaaaaaaaaaaaaaaaaaaa")
+															wordInputEditor := material.Editor(theme, &wordInput, "pesquise uma palavra aqui")
+															wordText = wordInput.Text()
 															return wordInputEditor.Layout(gtx)
 														},
 													),
@@ -451,23 +479,47 @@ func initialWindow(window *app.Window) error {
 																layout.Rigid(
 																	func(gtx layout.Context) layout.Dimensions {
 																		hashIndexScanButtonbtn := material.Button(theme, &hashIndexScanButton, "Índice Hash")
+																		if hashIndexScanButton.Clicked(gtx) {
+																			page, found, access, time := db_app.hashIndex.search(wordText)
+																			fmt.Println(found)
+																			output := ""
+																			if found {
+																				output += "Índice hash:\n"
+																				output += fmt.Sprintf("Encontrado na página %v, com %v acessos e demorando %v\nRegistros da pagina:\n\n", page, access, time)
+																				pages, _ := db_app.db.getPage(page)
+																				for _, v := range pages {
+																					output += v + "\n"
+																				}
+																				pageOutputText = output
+																			} else {
+																				pageOutputText = "Não encontrado: \"" + wordText + "\""
+																			}
+																		}
 																		return hashIndexScanButtonbtn.Layout(gtx)
 																	},
 																),
 																layout.Rigid(
 																	func(gtx layout.Context) layout.Dimensions {
 																		tableScanButtonbtn := material.Button(theme, &tableScanButton, "Table Scan")
+																		if tableScanButton.Clicked(gtx) {
+																			page, found, access, time := db_app.db.search(wordText)
+																			output := ""
+																			if found {
+																				output += "Table scan:\n"
+																				output += fmt.Sprintf("Encontrado na página %v, com %v acessos e demorando %v\nRegistros da pagina:\n\n", page, access, time)
+																				pages, _ := db_app.db.getPage(page)
+																				for _, v := range pages {
+																					output += v + "\n"
+																				}
+																				pageOutputText = output
+																			} else {
+																				pageOutputText = "Não encontrado: \"" + wordText + "\""
+																			}
+																		}
 																		return tableScanButtonbtn.Layout(gtx)
 																	},
 																),
 															)
-														},
-													),
-													// pagina
-													layout.Flexed(1,
-														func(gtx layout.Context) layout.Dimensions {
-															pageOutputEditor := material.Editor(theme, &pageOutput, "aaaaaaaaaaaaaaaaaaaaaaaaaa")
-															return pageOutputEditor.Layout(gtx)
 														},
 													),
 												)
