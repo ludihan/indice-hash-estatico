@@ -303,16 +303,16 @@ func initialWindow(window *app.Window) error {
 	var input string
 	var mainWindow = false
 	var backButton widget.Clickable
-	var tableScanButton widget.Clickable
-	var tupleButton widget.Clickable
-	var word string
 	var wordInput = widget.Editor{
 		SingleLine: true,
 		Submit:     true,
 	}
-	var infoOutput = widget.Editor{
+	var pageOutput = widget.Editor{
 		ReadOnly: true,
 	}
+
+	var tableScanButton widget.Clickable
+	var hashIndexScanButton widget.Clickable
 
 	margins := layout.UniformInset(unit.Dp(10))
 	for {
@@ -341,6 +341,7 @@ func initialWindow(window *app.Window) error {
 									if ok {
 										if btnE, ok := btnE.(widget.SubmitEvent); ok {
 											input = btnE.Text
+											btnE.Text = ""
 										}
 									}
 									input := material.Editor(theme, &pageSizeInput, "digite aqui")
@@ -380,6 +381,8 @@ func initialWindow(window *app.Window) error {
 				layout.Flex{
 					Axis: layout.Vertical,
 				}.Layout(gtx,
+
+					// botao
 					layout.Rigid(
 						func(gtx layout.Context) layout.Dimensions {
 							return margins.Layout(gtx,
@@ -394,22 +397,83 @@ func initialWindow(window *app.Window) error {
 							)
 						},
 					),
-					layout.Rigid(
+
+					// tudo abaixo do botao
+					layout.Flexed(1,
 						func(gtx layout.Context) layout.Dimensions {
-							pageSize = pageSize
 							return margins.Layout(gtx,
 								func(gtx layout.Context) layout.Dimensions {
-									layout.Flex{
-										Axis: layout.Vertical,
+
+									// duas colunas
+									return layout.Flex{
+										Axis:    layout.Horizontal,
+										Spacing: layout.SpaceAround,
 									}.Layout(gtx,
+
+										// coluna de informacao
 										layout.Rigid(
 											func(gtx layout.Context) layout.Dimensions {
+												return layout.Flex{
+													Axis: layout.Vertical,
+												}.Layout(gtx,
+													layout.Rigid(
+														// mostra a pagina que ele achou
+														func(gtx layout.Context) layout.Dimensions {
+															pageOutputEditor := material.Editor(theme, &pageOutput, "asdf")
+															return pageOutputEditor.Layout(gtx)
+														},
+													),
+												)
+											},
+										),
 
+										//coluna de input e pagina
+										layout.Rigid(
+											func(gtx layout.Context) layout.Dimensions {
+												return layout.Flex{
+													Axis: layout.Vertical,
+												}.Layout(gtx,
+
+													// input
+													layout.Rigid(
+														func(gtx layout.Context) layout.Dimensions {
+															wordInputEditor := material.Editor(theme, &wordInput, "aaaaaaaaaaaaaaaaaaaaaaaaaa")
+															return wordInputEditor.Layout(gtx)
+														},
+													),
+
+													// botoes
+													layout.Rigid(
+														func(gt layout.Context) layout.Dimensions {
+															return layout.Flex{
+																Axis: layout.Horizontal,
+															}.Layout(gtx,
+																layout.Rigid(
+																	func(gtx layout.Context) layout.Dimensions {
+																		hashIndexScanButtonbtn := material.Button(theme, &hashIndexScanButton, "Índice Hash")
+																		return hashIndexScanButtonbtn.Layout(gtx)
+																	},
+																),
+																layout.Rigid(
+																	func(gtx layout.Context) layout.Dimensions {
+																		tableScanButtonbtn := material.Button(theme, &tableScanButton, "Table Scan")
+																		return tableScanButtonbtn.Layout(gtx)
+																	},
+																),
+															)
+														},
+													),
+													// pagina
+													layout.Flexed(1,
+														func(gtx layout.Context) layout.Dimensions {
+															pageOutputEditor := material.Editor(theme, &pageOutput, "aaaaaaaaaaaaaaaaaaaaaaaaaa")
+															return pageOutputEditor.Layout(gtx)
+														},
+													),
+												)
 											},
 										),
 									)
-									title := material.H3(theme, "Tamanho da página:")
-									return title.Layout(gtx)
 								},
 							)
 						},
