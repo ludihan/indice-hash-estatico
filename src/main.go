@@ -470,7 +470,6 @@ func initialWindow(window *app.Window) error {
 																layout.Flexed(1,
 																	func(gtx layout.Context) layout.Dimensions {
                                                                         output := ""
-                                                                        fmt.Println(float64(len(db_app.db.data)), float64(db_app.db.pageCount()))
                                                                         lastPageSeries, _ := db_app.db.getPage(uint(db_app.db.pageCount()) - 1)
                                                                         for _, v := range lastPageSeries {
                                                                             output += v + "\n"
@@ -520,7 +519,6 @@ func initialWindow(window *app.Window) error {
 																		hashIndexScanButtonbtn := material.Button(theme, &hashIndexScanButton, "Índice Hash")
 																		if hashIndexScanButton.Clicked(gtx) {
 																			page, found, access, time := db_app.hashIndex.search(wordText)
-																			fmt.Println(found)
 																			output := ""
 																			if found {
 																				output += "Índice hash:\n"
