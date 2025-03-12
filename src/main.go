@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"flag"
 	"fmt"
+	"hash/fnv"
 	"log"
 	"math"
 	"os"
@@ -21,17 +22,14 @@ import (
 
 // https://wikipedia.org/wiki/Fowler–Noll–Vo_hash_function#FNV-1_hash
 func hash(word string) uint64 {
-	const fnvOffsetBasis uint64 = 14695981039346656037
-	const fnvPrime uint64 = 1099511628211
+	// Create a new FNV-1a hash object
+	h := fnv.New64a()
 
-	var hash uint64 = fnvOffsetBasis
+	// Write the bytes of the word to the hash object
+	h.Write([]byte(word))
 
-	for i := range len(word) {
-		hash *= fnvPrime
-		hash ^= uint64(word[i])
-	}
-
-	return hash
+	// Return the hash value as uint64
+	return h.Sum64()
 }
 
 func nextPrime(n int) int {
@@ -96,7 +94,7 @@ type App struct {
 	hashIndex   []Bucket
 }
 
-func reindex(pageSize uint) App {
+func rehash(pageSize uint) App {
 	// db file
 	file := bufio.NewScanner(strings.NewReader(rawData))
 	db := Database{
@@ -116,7 +114,7 @@ func reindex(pageSize uint) App {
 	bucketSize := 5
 
 	// (NB)
-    bucketCount := nextPrime(int(math.Ceil(float64(len(db.data)) / float64(bucketSize)) + float64(len(db.data)) * 0.1 ))
+	bucketCount := nextPrime(int(math.Ceil(float64(len(db.data))/float64(bucketSize)) + float64(len(db.data))*0.2))
 
 	// (NR)
 	wordCount := len(db.data)
@@ -207,7 +205,7 @@ func cli() {
 		break
 	}
 
-	app := reindex(pageSize)
+	app := rehash(pageSize)
 	db := app.db
 	hashIndex := app.hashIndex
 	for {
@@ -256,6 +254,8 @@ func cli() {
 }
 
 func gui(window *app.Window) error {
+	pageSizeNotProvided := true
+
 	// GUI stuff
 	var ops op.Ops
 
@@ -263,42 +263,94 @@ func gui(window *app.Window) error {
 
 	theme := material.NewTheme()
 
+	var pageSizeInput widget.Editor = widget.Editor{
+		SingleLine: true,
+		Submit:     true,
+	}
+	var pageSizeSend widget.Clickable
 	for {
 		switch e := window.Event().(type) {
 		case app.FrameEvent:
 			gtx := app.NewContext(&ops, e)
+			if pageSizeNotProvided {
+				layout.Flex{
+					Axis:    layout.Vertical,
+					Spacing: layout.SpaceEnd,
+				}.Layout(gtx,
+					layout.Rigid(
+						func(gtx layout.Context) layout.Dimensions {
+							margins := layout.UniformInset(unit.Dp(10))
 
-			layout.Flex{
-				Axis:    layout.Vertical,
-				Spacing: layout.SpaceEnd,
-			}.Layout(gtx,
-				layout.Rigid(
-					func(gtx layout.Context) layout.Dimensions {
-						margins := layout.UniformInset(unit.Dp(10))
+							return margins.Layout(gtx,
+								func(gtx layout.Context) layout.Dimensions {
+									title := material.H3(theme, "Page size:")
+									return title.Layout(gtx)
+								},
+							)
 
-						return margins.Layout(gtx,
-							func(gtx layout.Context) layout.Dimensions {
-								title := material.H1(theme, "huhhhhh")
-								return title.Layout(gtx)
-							},
-						)
+						},
+					),
+					layout.Rigid(
+						func(gtx layout.Context) layout.Dimensions {
+							margins := layout.UniformInset(unit.Dp(10))
 
-					},
-				),
-				layout.Rigid(
-					func(gtx layout.Context) layout.Dimensions {
-						margins := layout.UniformInset(unit.Dp(10))
+							return margins.Layout(gtx,
+								func(gtx layout.Context) layout.Dimensions {
+									input := material.Editor(theme, &pageSizeInput, "send")
+									return input.Layout(gtx)
+								},
+							)
 
-						return margins.Layout(gtx,
-							func(gtx layout.Context) layout.Dimensions {
-								btn := material.Button(theme, &startButton, "Start")
-								return btn.Layout(gtx)
-							},
-						)
+						},
+					),
+					layout.Rigid(
+						func(gtx layout.Context) layout.Dimensions {
+							margins := layout.UniformInset(unit.Dp(10))
 
-					},
-				),
-			)
+							return margins.Layout(gtx,
+								func(gtx layout.Context) layout.Dimensions {
+									btn := material.Button(theme, &pageSizeSend, "send")
+									return btn.Layout(gtx)
+								},
+							)
+
+						},
+					),
+				)
+			} else {
+				layout.Flex{
+					Axis:    layout.Vertical,
+					Spacing: layout.SpaceEnd,
+				}.Layout(gtx,
+					layout.Rigid(
+						func(gtx layout.Context) layout.Dimensions {
+							margins := layout.UniformInset(unit.Dp(10))
+
+							return margins.Layout(gtx,
+								func(gtx layout.Context) layout.Dimensions {
+									title := material.H1(theme, "huhhhhh")
+									return title.Layout(gtx)
+								},
+							)
+
+						},
+					),
+					layout.Rigid(
+						func(gtx layout.Context) layout.Dimensions {
+							margins := layout.UniformInset(unit.Dp(10))
+
+							return margins.Layout(gtx,
+								func(gtx layout.Context) layout.Dimensions {
+									btn := material.Button(theme, &startButton, "Start")
+									return btn.Layout(gtx)
+								},
+							)
+
+						},
+					),
+				)
+			}
+
 			e.Frame(gtx.Ops)
 		case app.DestroyEvent:
 			return e.Err
