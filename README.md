@@ -12,7 +12,7 @@ go run .
 
 4. Caso esteja usando windows e queira desabilitar o terminal execute isto:
 ```sh
-go run -ldflags="-H windowsgui" gioui.org/example/hello@latest
+go run -ldflags="-H windowsgui" .
 ```
 
-5. Pra buildar use "build" ao invés de "run" nos comandos
+5. Pra criar um binário final use "build" ao invés de "run" nos comandos
