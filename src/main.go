@@ -77,20 +77,27 @@ func main() {
 	bucketSize := 2
 
 	// (NB)
-	bucketCount := (len(db.data) / bucketSize)
+	bucketCount := (len(db.data) / bucketSize) + int(float64(len(db.data))*0.05)
 
 	// (NR)
 	wordCount := len(db.data)
-	fmt.Println(bucketCount, wordCount)
+
+	fmt.Println("bucketSize: ", bucketSize)
+	fmt.Println("bucketCount:", bucketCount)
+	fmt.Println("wordCount:  ", wordCount)
 
 	hashIndex := make([]Bucket, bucketCount)
 	for i := range hashIndex {
 		hashIndex[i].values = make(map[string]uint)
 	}
 
+	colisoes := 0
 	for i, v := range db.data {
 		hashed := hash(v)
 		bucket := &hashIndex[hashed%uint64(len(hashIndex))]
+		if len(bucket.values) > 0 {
+			colisoes++
+		}
 
 		for bucket.overflow != nil {
 			bucket = bucket.overflow
@@ -105,30 +112,33 @@ func main() {
 		bucket.values[v] = uint(i) / db.pageSize
 	}
 
+	fmt.Println("colisoes:   ", colisoes)
+	fmt.Println("")
 	reader := bufio.NewReader(os.Stdin)
 	for {
+        fmt.Print(">>> ")
 		text, _ := reader.ReadString('\n')
 
-        text = strings.TrimSpace(text)
+		text = strings.TrimSpace(text)
 		found := false
 		page := uint(0)
 		bucket := &hashIndex[hash(text)%uint64(len(hashIndex))]
-        for bucket != nil {
-            fmt.Println(bucket)
+		for bucket != nil {
+			fmt.Println(bucket)
 			for k, v := range bucket.values {
-                if k == text {
-                    page = v
-                    found = true
-                }
+				if k == text {
+					page = v
+					found = true
+				}
 			}
 			bucket = bucket.overflow
 		}
-        if found {
-            fmt.Println("Found in page", page)
-            foundPage, _ := db.getPage(page)
-            fmt.Println(foundPage, "\n")
-        } else {
-            fmt.Println("not found\n")
-        }
+		if found {
+			fmt.Println("Found in page", page)
+			foundPage, _ := db.getPage(page)
+			fmt.Println(foundPage, "\n")
+		} else {
+			fmt.Println("not found\n")
+		}
 	}
 }
