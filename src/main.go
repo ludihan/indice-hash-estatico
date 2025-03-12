@@ -319,6 +319,13 @@ func initialWindow(window *app.Window) error {
 	var hashIndexScanButton widget.Clickable
 
 	var pageOutputText string
+
+	var firstPage = widget.Editor{
+		ReadOnly: true,
+	}
+	var lastPage = widget.Editor{
+		ReadOnly: true,
+	}
 	margins := layout.UniformInset(unit.Dp(10))
 	for {
 		switch e := window.Event().(type) {
@@ -424,23 +431,55 @@ func initialWindow(window *app.Window) error {
 												return layout.Flex{
 													Axis: layout.Vertical,
 												}.Layout(gtx,
-													layout.Rigid(
+													layout.Flexed(1,
 														// mostra a pagina que ele achou
 														func(gtx layout.Context) layout.Dimensions {
 															pageOutputEditor := material.Editor(theme, &pageOutput,
 																fmt.Sprintf(
-																	"tamanho do bucket: %v\n" +
-																	"quantidade de buckets: %v\n" +
-																	"tamanho da pagina: %v\n" +
-																	"quantidade de registros: %v\n" +
-																	"colisões: %v %v %%\n" +
-																	"overflows: %v %v %%\n",
+																	"Tamanho do bucket: %v\n"+
+																		"Quantidade de buckets: %v\n"+
+																		"Tamanho da pagina: %v\n"+
+																		"Quantidade de registros: %v\n"+
+																		"Colisões: %v %v %%\n"+
+																		"Overflows: %v %v %%\n",
 																	db_app.bucketSize, db_app.bucketCount, db_app.db.pageSize, len(db_app.db.data),
 																	db_app.collisions, float64(db_app.collisions)/float64(len(db_app.db.data))*100,
 																	db_app.overflows, float64(db_app.overflows)/float64(len(db_app.db.data))*100,
 																),
 															)
 															return pageOutputEditor.Layout(gtx)
+														},
+													),
+													layout.Flexed(1,
+														// primeira e ultima pagina
+														func(gtx layout.Context) layout.Dimensions {
+															return layout.Flex{
+																Axis: layout.Horizontal,
+															}.Layout(gtx,
+																layout.Flexed(1,
+																	func(gtx layout.Context) layout.Dimensions {
+                                                                        output := ""
+                                                                        firstPageSeries, _ := db_app.db.getPage(0)
+                                                                        for _, v := range firstPageSeries {
+                                                                            output += v + "\n"
+                                                                        }
+                                                                        first := material.Editor(theme, &firstPage, output)
+                                                                        return first.Layout(gtx)
+																	},
+																),
+																layout.Flexed(1,
+																	func(gtx layout.Context) layout.Dimensions {
+                                                                        output := ""
+                                                                        fmt.Println(float64(len(db_app.db.data)), float64(db_app.db.pageCount()))
+                                                                        lastPageSeries, _ := db_app.db.getPage(uint(db_app.db.pageCount()) - 1)
+                                                                        for _, v := range lastPageSeries {
+                                                                            output += v + "\n"
+                                                                        }
+                                                                        last := material.Editor(theme, &lastPage, output)
+                                                                        return last.Layout(gtx)
+																	},
+																),
+															)
 														},
 													),
 												)
@@ -472,7 +511,7 @@ func initialWindow(window *app.Window) error {
 
 													// botoes
 													layout.Rigid(
-														func(gt layout.Context) layout.Dimensions {
+														func(gtx layout.Context) layout.Dimensions {
 															return layout.Flex{
 																Axis: layout.Horizontal,
 															}.Layout(gtx,
