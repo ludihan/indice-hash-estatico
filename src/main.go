@@ -292,6 +292,7 @@ func initialWindow(window *app.Window) error {
 	var ops op.Ops
 
 	theme := material.NewTheme()
+    theme.TextSize = unit.Sp(20)
 
 	var pageSizeInput = widget.Editor{
 		SingleLine: true,
@@ -458,7 +459,7 @@ func initialWindow(window *app.Window) error {
 															}.Layout(gtx,
 																layout.Flexed(1,
 																	func(gtx layout.Context) layout.Dimensions {
-                                                                        output := ""
+                                                                        output := "Primeira pagina:\n\n"
                                                                         firstPageSeries, _ := db_app.db.getPage(0)
                                                                         for _, v := range firstPageSeries {
                                                                             output += v + "\n"
@@ -469,7 +470,7 @@ func initialWindow(window *app.Window) error {
 																),
 																layout.Flexed(1,
 																	func(gtx layout.Context) layout.Dimensions {
-                                                                        output := ""
+                                                                        output := "Ultima pagina:\n\n"
                                                                         lastPageSeries, _ := db_app.db.getPage(uint(db_app.db.pageCount()) - 1)
                                                                         for _, v := range lastPageSeries {
                                                                             output += v + "\n"
