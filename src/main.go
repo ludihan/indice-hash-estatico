@@ -140,7 +140,7 @@ func rehash(pageSize uint) App {
 	for file.Scan() {
 		text := file.Text()
 		if len(strings.TrimSpace(text)) != 0 {
-			db.data = append(db.data, file.Text())
+			db.data = append(db.data, text)
 		}
 	}
 
