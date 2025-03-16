@@ -504,7 +504,7 @@ func initialWindow(window *app.Window) error {
 													layout.Rigid(
 														func(gtx layout.Context) layout.Dimensions {
 															wordInputEditor := material.Editor(theme, &wordInput, "pesquise uma palavra aqui")
-															wordText = wordInput.Text()
+															wordText = strings.TrimSpace(wordInput.Text())
 															return wordInputEditor.Layout(gtx)
 														},
 													),
