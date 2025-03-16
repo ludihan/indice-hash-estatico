@@ -292,7 +292,7 @@ func initialWindow(window *app.Window) error {
 	var ops op.Ops
 
 	theme := material.NewTheme()
-	theme.TextSize = unit.Sp(20)
+	theme.TextSize = unit.Sp(18)
 
 	var pageSizeInput = widget.Editor{
 		SingleLine: true,
@@ -312,19 +312,20 @@ func initialWindow(window *app.Window) error {
 		Submit:     true,
 	}
 	var wordText string
-	var pageOutput = widget.Editor{
+	var dbInfoOutput = widget.Editor{
 		ReadOnly: true,
 	}
 
 	var tableScanButton widget.Clickable
 	var hashIndexScanButton widget.Clickable
 
-	var pageOutputText string
-
 	var firstPage = widget.Editor{
 		ReadOnly: true,
 	}
 	var lastPage = widget.Editor{
+		ReadOnly: true,
+	}
+	var pageFound = widget.Editor{
 		ReadOnly: true,
 	}
 	margins := layout.UniformInset(unit.Dp(10))
@@ -393,6 +394,32 @@ func initialWindow(window *app.Window) error {
 				if !alreadyRehashed {
 					db_app = rehash(uint(pageSize))
 					alreadyRehashed = true
+					dbInfoOutput.SetText(
+						fmt.Sprintf(
+							"Tamanho do bucket: %v\n"+
+								"Quantidade de buckets: %v\n"+
+								"Tamanho da pagina: %v\n"+
+								"Quantidade de registros: %v\n"+
+								"Colisões: %v %v %%\n"+
+								"Overflows: %v %v %%\n",
+							db_app.bucketSize, db_app.bucketCount, db_app.db.pageSize, len(db_app.db.data),
+							db_app.collisions, float64(db_app.collisions)/float64(len(db_app.db.data))*100,
+							db_app.overflows, float64(db_app.overflows)/float64(len(db_app.db.data))*100,
+						),
+					)
+					output := "Primeira página:\n\n"
+					firstPageSeries, _ := db_app.db.getPage(0)
+					for _, v := range firstPageSeries {
+						output += v + "\n"
+					}
+					firstPage.SetText(output)
+
+					output = "Última página:\n\n"
+					lastPageSeries, _ := db_app.db.getPage(uint(db_app.db.pageCount()) - 1)
+					for _, v := range lastPageSeries {
+						output += v + "\n"
+					}
+					lastPage.SetText(output)
 				}
 				layout.Flex{
 					Axis: layout.Vertical,
@@ -407,6 +434,7 @@ func initialWindow(window *app.Window) error {
 									if backButton.Clicked(gtx) {
 										input = ""
 										mainWindow = false
+										alreadyRehashed = false
 									}
 									return backBtn.Layout(gtx)
 								},
@@ -414,7 +442,7 @@ func initialWindow(window *app.Window) error {
 						},
 					),
 
-					// tudo abaixo do botao
+					// tudo abaixo do botao de voltar
 					layout.Rigid(
 						func(gtx layout.Context) layout.Dimensions {
 							return margins.Layout(gtx,
@@ -435,19 +463,7 @@ func initialWindow(window *app.Window) error {
 													layout.Flexed(1,
 														// mostra a pagina que ele achou
 														func(gtx layout.Context) layout.Dimensions {
-															pageOutputEditor := material.Editor(theme, &pageOutput,
-																fmt.Sprintf(
-																	"Tamanho do bucket: %v\n"+
-																		"Quantidade de buckets: %v\n"+
-																		"Tamanho da pagina: %v\n"+
-																		"Quantidade de registros: %v\n"+
-																		"Colisões: %v %v %%\n"+
-																		"Overflows: %v %v %%\n",
-																	db_app.bucketSize, db_app.bucketCount, db_app.db.pageSize, len(db_app.db.data),
-																	db_app.collisions, float64(db_app.collisions)/float64(len(db_app.db.data))*100,
-																	db_app.overflows, float64(db_app.overflows)/float64(len(db_app.db.data))*100,
-																),
-															)
+															pageOutputEditor := material.Editor(theme, &dbInfoOutput, "")
 															return pageOutputEditor.Layout(gtx)
 														},
 													),
@@ -459,23 +475,13 @@ func initialWindow(window *app.Window) error {
 															}.Layout(gtx,
 																layout.Flexed(1,
 																	func(gtx layout.Context) layout.Dimensions {
-																		output := "Primeira pagina:\n\n"
-																		firstPageSeries, _ := db_app.db.getPage(0)
-																		for _, v := range firstPageSeries {
-																			output += v + "\n"
-																		}
-																		first := material.Editor(theme, &firstPage, output)
+																		first := material.Editor(theme, &firstPage, "")
 																		return first.Layout(gtx)
 																	},
 																),
 																layout.Flexed(1,
 																	func(gtx layout.Context) layout.Dimensions {
-																		output := "Ultima pagina:\n\n"
-																		lastPageSeries, _ := db_app.db.getPage(uint(db_app.db.pageCount()) - 1)
-																		for _, v := range lastPageSeries {
-																			output += v + "\n"
-																		}
-																		last := material.Editor(theme, &lastPage, output)
+																		last := material.Editor(theme, &lastPage, "")
 																		return last.Layout(gtx)
 																	},
 																),
@@ -495,8 +501,8 @@ func initialWindow(window *app.Window) error {
 													// pagina
 													layout.Flexed(1,
 														func(gtx layout.Context) layout.Dimensions {
-															pageOutputEditor := material.Editor(theme, &pageOutput, pageOutputText)
-															return pageOutputEditor.Layout(gtx)
+															pageFoundEditor := material.Editor(theme, &pageFound, "")
+															return pageFoundEditor.Layout(gtx)
 														},
 													),
 
@@ -528,9 +534,9 @@ func initialWindow(window *app.Window) error {
 																				for _, v := range pages {
 																					output += v + "\n"
 																				}
-																				pageOutputText = output
+																				pageFound.SetText(output)
 																			} else {
-																				pageOutputText = "Não encontrado: \"" + wordText + "\""
+																				pageFound.SetText("Não encontrado: \"" + wordText + "\"")
 																			}
 																		}
 																		return hashIndexScanButtonbtn.Layout(gtx)
@@ -549,9 +555,9 @@ func initialWindow(window *app.Window) error {
 																				for _, v := range pages {
 																					output += v + "\n"
 																				}
-																				pageOutputText = output
+																				pageFound.SetText(output)
 																			} else {
-																				pageOutputText = "Não encontrado: \"" + wordText + "\""
+																				pageFound.SetText("Não encontrado: \"" + wordText + "\"")
 																			}
 																		}
 																		return tableScanButtonbtn.Layout(gtx)
