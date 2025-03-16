@@ -5,7 +5,6 @@ import (
 	_ "embed"
 	"flag"
 	"fmt"
-	"hash/fnv"
 	"log"
 	"math"
 	"os"
@@ -23,14 +22,15 @@ import (
 
 // https://wikipedia.org/wiki/Fowler–Noll–Vo_hash_function#FNV-1_hash
 func hash(word string) uint64 {
-	// Create a new FNV-1a hash object
-	h := fnv.New64a()
+	FNVOffsetBasis := uint64(14695981039346656037)
+	FNVPrime := uint64(1099511628211)
+	hash := FNVOffsetBasis
+	for i := 0; i < len(word); i++ {
+		hash = hash * FNVPrime
+		hash = hash ^ uint64(word[i])
+	}
 
-	// Write the bytes of the word to the hash object
-	h.Write([]byte(word))
-
-	// Return the hash value as uint64
-	return h.Sum64()
+	return hash
 }
 
 func nextPrime(n int) int {
@@ -87,7 +87,7 @@ func (db *Database) search(word string) (uint, bool, uint, time.Duration) {
 	for i, v := range db.data {
 		if word == v {
 			pages = uint(i) / db.pageSize
-			return pages, true, pages, time.Now().Sub(start)
+			return pages, true, pages + 1, time.Now().Sub(start)
 		}
 	}
 	return pages, false, pages, time.Now().Sub(start)
@@ -292,7 +292,7 @@ func initialWindow(window *app.Window) error {
 	var ops op.Ops
 
 	theme := material.NewTheme()
-    theme.TextSize = unit.Sp(20)
+	theme.TextSize = unit.Sp(20)
 
 	var pageSizeInput = widget.Editor{
 		SingleLine: true,
@@ -459,24 +459,24 @@ func initialWindow(window *app.Window) error {
 															}.Layout(gtx,
 																layout.Flexed(1,
 																	func(gtx layout.Context) layout.Dimensions {
-                                                                        output := "Primeira pagina:\n\n"
-                                                                        firstPageSeries, _ := db_app.db.getPage(0)
-                                                                        for _, v := range firstPageSeries {
-                                                                            output += v + "\n"
-                                                                        }
-                                                                        first := material.Editor(theme, &firstPage, output)
-                                                                        return first.Layout(gtx)
+																		output := "Primeira pagina:\n\n"
+																		firstPageSeries, _ := db_app.db.getPage(0)
+																		for _, v := range firstPageSeries {
+																			output += v + "\n"
+																		}
+																		first := material.Editor(theme, &firstPage, output)
+																		return first.Layout(gtx)
 																	},
 																),
 																layout.Flexed(1,
 																	func(gtx layout.Context) layout.Dimensions {
-                                                                        output := "Ultima pagina:\n\n"
-                                                                        lastPageSeries, _ := db_app.db.getPage(uint(db_app.db.pageCount()) - 1)
-                                                                        for _, v := range lastPageSeries {
-                                                                            output += v + "\n"
-                                                                        }
-                                                                        last := material.Editor(theme, &lastPage, output)
-                                                                        return last.Layout(gtx)
+																		output := "Ultima pagina:\n\n"
+																		lastPageSeries, _ := db_app.db.getPage(uint(db_app.db.pageCount()) - 1)
+																		for _, v := range lastPageSeries {
+																			output += v + "\n"
+																		}
+																		last := material.Editor(theme, &lastPage, output)
+																		return last.Layout(gtx)
 																	},
 																),
 															)
@@ -515,7 +515,7 @@ func initialWindow(window *app.Window) error {
 															return layout.Flex{
 																Axis: layout.Horizontal,
 															}.Layout(gtx,
-																layout.Rigid(
+																layout.Flexed(1,
 																	func(gtx layout.Context) layout.Dimensions {
 																		hashIndexScanButtonbtn := material.Button(theme, &hashIndexScanButton, "Índice Hash")
 																		if hashIndexScanButton.Clicked(gtx) {
@@ -536,7 +536,7 @@ func initialWindow(window *app.Window) error {
 																		return hashIndexScanButtonbtn.Layout(gtx)
 																	},
 																),
-																layout.Rigid(
+																layout.Flexed(1,
 																	func(gtx layout.Context) layout.Dimensions {
 																		tableScanButtonbtn := material.Button(theme, &tableScanButton, "Table Scan")
 																		if tableScanButton.Clicked(gtx) {
