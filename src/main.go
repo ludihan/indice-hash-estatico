@@ -407,14 +407,15 @@ func initialWindow(window *app.Window) error {
 							db_app.overflows, float64(db_app.overflows)/float64(len(db_app.db.data))*100,
 						),
 					)
-					output := "Primeira página:\n\n"
+					output := "Primeira página (0):\n\n"
 					firstPageSeries, _ := db_app.db.getPage(0)
 					for _, v := range firstPageSeries {
 						output += v + "\n"
 					}
 					firstPage.SetText(output)
 
-					output = "Última página:\n\n"
+					pageNum := uint(db_app.db.pageCount()) - 1
+					output = fmt.Sprintf("Última página:(%v)\n\n", pageNum)
 					lastPageSeries, _ := db_app.db.getPage(uint(db_app.db.pageCount()) - 1)
 					for _, v := range lastPageSeries {
 						output += v + "\n"
