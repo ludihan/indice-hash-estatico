@@ -25,7 +25,7 @@ func hash(word string) uint64 {
 	FNVOffsetBasis := uint64(14695981039346656037)
 	FNVPrime := uint64(1099511628211)
 	hash := FNVOffsetBasis
-	for i := 0; i < len(word); i++ {
+	for i := range len(word) {
 		hash = hash * FNVPrime
 		hash = hash ^ uint64(word[i])
 	}
